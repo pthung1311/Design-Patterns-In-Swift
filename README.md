@@ -890,38 +890,104 @@ An external class controls the construction algorithm.
 ### Example
 
 ```swift
-final class DeathStarBuilder {
-
-    var x: Double?
-    var y: Double?
-    var z: Double?
-
-    typealias BuilderClosure = (DeathStarBuilder) -> ()
-
-    init(buildClosure: BuilderClosure) {
-        buildClosure(self)
+public struct Hamburger {
+    public let meat: Meat
+    public let sauce: Sauces
+    public let toppings: Toppings
+}
+extension Hamburger: CustomStringConvertible {
+    public var description: String {
+        return meat.rawValue + " burger"
+    }
+}
+// 2
+public enum Meat: String {
+    case beef
+    case chicken
+    case kitten
+    case tofu
+}
+// 3
+public struct Sauces: OptionSet {
+    public static let mayonnaise = Sauces(rawValue: 1 << 0)
+    public static let mustard = Sauces(rawValue: 1 << 1)
+    public static let ketchup = Sauces(rawValue: 1 << 2)
+    public static let secret = Sauces(rawValue: 1 << 3)
+    public let rawValue: Int
+    public init(rawValue: Int) {
+        self.rawValue = rawValue
+    }
+}
+// 4
+public struct Toppings: OptionSet {
+    public static let cheese = Toppings(rawValue: 1 << 0)
+    public static let lettuce = Toppings(rawValue: 1 << 1)
+    public static let pickles = Toppings(rawValue: 1 << 2)
+    public static let tomatoes = Toppings(rawValue: 1 << 3)
+    public let rawValue: Int
+    public init(rawValue: Int) {
+        self.rawValue = rawValue
     }
 }
 
-struct DeathStar : CustomStringConvertible {
-
-    let x: Double
-    let y: Double
-    let z: Double
-
-    init?(builder: DeathStarBuilder) {
-
-        if let x = builder.x, let y = builder.y, let z = builder.z {
-            self.x = x
-            self.y = y
-            self.z = z
-        } else {
-            return nil
-        }
+// MARK: - Builder
+public class HamburgerBuilder {
+    // 1
+    public private(set) var meat: Meat = .beef
+    public private(set) var sauces: Sauces = []
+    public private(set) var toppings: Toppings = []
+    // 2
+    public func addSauces(_ sauce: Sauces) {
+        sauces.insert(sauce)
     }
+    public func removeSauces(_ sauce: Sauces) {
+        sauces.remove(sauce)
+    }
+    public func addToppings(_ topping: Toppings) {
+        toppings.insert(topping)
+    }
+    public func removeToppings(_ topping: Toppings) {
+        toppings.remove(topping)
+    }
+    public func setMeat(_ meat: Meat) {
+        self.meat = meat
+    }
+    // 3
+    public func build() -> Hamburger {
+        return Hamburger(meat: meat,
+                         sauce: sauces,
+                         toppings: toppings)
+    }
+}
 
-    var description:String {
-        return "Death Star at (x:\(x) y:\(y) z:\(z))"
+private var soldOutMeats: [Meat] = [.kitten]
+
+public enum Error: Swift.Error {
+    case soldOut
+}
+public func setMeat(_ meat: Meat) throws {
+    guard isAvailable(meat) else { throw Error.soldOut }
+    self.meat = meat
+}
+public func isAvailable(_ meat: Meat) -> Bool {
+    return !soldOutMeats.contains(meat)
+}
+
+// MARK: - Director
+public class Employee {
+    public func createCombo1() throws -> Hamburger {
+        let builder = HamburgerBuilder()
+        try builder.setMeat(.beef)
+        builder.addSauces(.secret)
+        builder.addToppings([.lettuce, .tomatoes, .pickles])
+        return builder.build()
+    }
+    public func createKittenSpecial() throws -> Hamburger {
+        let builder = HamburgerBuilder()
+        try builder.setMeat(.kitten)
+        builder.addSauces(.mustard)
+        builder.addToppings([.lettuce, .tomatoes])
+        return builder.build()
     }
 }
 ```
@@ -929,13 +995,11 @@ struct DeathStar : CustomStringConvertible {
 ### Usage
 
 ```swift
-let empire = DeathStarBuilder { builder in
-    builder.x = 0.1
-    builder.y = 0.2
-    builder.z = 0.3
+// MARK: - Example
+let burgerFlipper = Employee()
+if let combo1 = try? burgerFlipper.createCombo1() {
+    print("Nom nom " + combo1.description)
 }
-
-let deathStar = DeathStar(builder:empire)
 ```
 
 🏭 Factory Method
